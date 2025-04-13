@@ -13,10 +13,15 @@ layout(location = 2) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
-vec3 light_dir = vec3(0.3, 0.4, 0.5);
+vec3 light_dir = normalize(vec3(0.3, 0.4, 0.5));
+vec3 ambientColor = vec3(0.1, 0.3, 0.1); // Dark green ambient
+vec3 diffuseColor = vec3(0.3, 0.7, 0.3); // Brighter green diffuse
 
 void main() {
     // TODO: Compute fragment color
-    vec3 color = normal * light_dir;
-    outColor = vec4(color, 1.0);
+    vec3 N = normalize(normal);
+    float diffuseFactor = max(dot(N, light_dir), 0.0);
+    vec3 finalColor = ambientColor + diffuseColor * diffuseFactor;
+
+    outColor = vec4(finalColor, 1.0);
 }
