@@ -11,6 +11,10 @@ SwapChain* swapChain;
 Renderer* renderer;
 Camera* camera;
 
+static int frameCount = 0;
+static double lastTime = 0.0;
+static double frameRate = 0.0;
+
 namespace {
     void resizeCallback(GLFWwindow* window, int width, int height) {
         if (width == 0 || height == 0) return;
@@ -67,7 +71,8 @@ namespace {
 
 int main() {
     static constexpr char* applicationName = "Vulkan Grass Rendering";
-    InitializeWindow(640, 480, applicationName);
+    // InitializeWindow(640, 480, applicationName);
+    InitializeWindow(1280, 960, applicationName);
 
     unsigned int glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -130,7 +135,8 @@ int main() {
     plane->SetTexture(grassImage);
     
     Blades* blades = new Blades(device, transferCommandPool, planeDim);
-
+    blades->SetTexture(grassImage);
+    
     vkDestroyCommandPool(device->GetVkDevice(), transferCommandPool, nullptr);
 
     Scene* scene = new Scene(device);
@@ -143,10 +149,21 @@ int main() {
     glfwSetMouseButtonCallback(GetGLFWWindow(), mouseDownCallback);
     glfwSetCursorPosCallback(GetGLFWWindow(), mouseMoveCallback);
 
+    lastTime = glfwGetTime();
+
     while (!ShouldQuit()) {
         glfwPollEvents();
         scene->UpdateTime();
         renderer->Frame();
+
+        frameCount++;
+        double currentTime = glfwGetTime();
+        if (currentTime - lastTime > 1.0) {
+            frameRate = frameCount / (currentTime - lastTime);
+            frameCount = 0;
+            lastTime = currentTime;
+            UpdateWindowTitle(frameRate);
+        }
     }
 
     vkDeviceWaitIdle(device->GetVkDevice());

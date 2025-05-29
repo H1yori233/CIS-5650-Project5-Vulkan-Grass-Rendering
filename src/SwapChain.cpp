@@ -77,7 +77,9 @@ SwapChain::SwapChain(Device* device, VkSurfaceKHR vkSurface, unsigned int numBuf
 void SwapChain::Create(uint32_t width, uint32_t height) {
     auto* instance = device->GetInstance();
 
-    const auto& surfaceCapabilities = instance->GetSurfaceCapabilities();
+    // const auto& surfaceCapabilities = instance->GetSurfaceCapabilities();
+    VkSurfaceCapabilitiesKHR surfaceCapabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(instance->GetPhysicalDevice(), vkSurface, &surfaceCapabilities);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(instance->GetSurfaceFormats());
     VkPresentModeKHR presentMode = chooseSwapPresentMode(instance->GetPresentModes());

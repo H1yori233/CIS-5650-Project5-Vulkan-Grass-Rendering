@@ -3,6 +3,7 @@
 
 namespace {
     GLFWwindow* window = nullptr;
+    const char* windowName = nullptr;
 }
 
 GLFWwindow* GetGLFWWindow() {
@@ -21,6 +22,7 @@ void InitializeWindow(int width, int height, const char* name) {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    windowName = name;
     window = glfwCreateWindow(width, height, name, nullptr, nullptr);
 
     if (!window) {
@@ -37,4 +39,10 @@ bool ShouldQuit() {
 void DestroyWindow() {
     glfwDestroyWindow(window);
     glfwTerminate();
+}
+
+void UpdateWindowTitle(double frameRate) {
+    char title[256];
+    sprintf(title, "%s - FPS: %.1f", windowName, frameRate);
+    glfwSetWindowTitle(window, title);
 }

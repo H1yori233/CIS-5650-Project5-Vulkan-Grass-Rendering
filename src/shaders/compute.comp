@@ -36,20 +36,40 @@ struct Blade {
 // 	  uint firstInstance; // = 0
 // } numBlades;
 
-// layout(set = 2, binding = 0) buffer InputBlades {
-//     Blade[];
-// };
+layout(set = 2, binding = 0) buffer InputBlades {
+    Blade inputBlades[];
+};
 
-// layout(set = 2, binding = 1) buffer OutputBlades {
-//     Blade[];
-// };
+layout(set = 2, binding = 1) buffer CulledBlades {
+    Blade culledBlades[];
+};
 
-// layout(set = 2, binding = 2) buffer NumBlades {
-//     uint vertexCount;   // Write the number of blades remaining here
-//     uint instanceCount; // = 1
-//     uint firstVertex;   // = 0
-//     uint firstInstance; // = 0
-// };
+layout(set = 2, binding = 2) buffer NumBlades {
+    uint vertexCount;   // Write the number of blades remaining here
+    uint instanceCount; // = 1
+    uint firstVertex;   // = 0
+    uint firstInstance; // = 0
+} numBlades;
+
+vec3 GetWindDirection(vec3 v0) {
+    return normalize(-vec3(1, 0, 1) + v0);
+}
+
+vec3 GetWind(vec3 v0, vec3 v2, vec3 up, float h) {
+    const float windPower   = 23.0;
+    const float windSpeed   = 6.0;
+    const float waveLength  = 1.5;
+
+    vec3  windDir    = GetWindDirection(v0);
+    float phase      = (dot(v0, windDir) - windSpeed * totalTime) / waveLength;
+    float waveCoeff  = cos(phase);
+
+    float f_d        = 1.0 - abs(dot(windDir, normalize(v2 - v0)));
+    float f_r        = dot(v2 - v0, up) / h;
+    float theta      = f_d * f_r;
+
+    return windDir * windPower * waveCoeff * theta;
+}
 
 bool inBounds(float value, float bounds) {
     return (value >= -bounds) && (value <= bounds);
@@ -58,14 +78,67 @@ bool inBounds(float value, float bounds) {
 void main() {
 	// Reset the number of blades to 0
 	if (gl_GlobalInvocationID.x == 0) {
-		// numBlades.vertexCount = 0;
+		numBlades.vertexCount = 0;
+        numBlades.instanceCount = 1;
+        numBlades.firstVertex = 0;
+        numBlades.firstInstance = 0;
 	}
 	barrier(); // Wait till all threads reach this point
 
     // TODO: Apply forces on every blade and update the vertices in the buffer
+    Blade blade = inputBlades[gl_GlobalInvocationID.x];
+    vec3 v0 = blade.v0.xyz;
+    vec3 v1 = blade.v1.xyz;
+    vec3 v2 = blade.v2.xyz;
+    vec3 up = blade.up.xyz;
+
+    float angle = blade.v0.w;
+    float height = blade.v1.w;
+    float width = blade.v2.w;
+    float stiff = blade.up.w;
+
+    // 5.1 Natural Forces
+    vec3 width_dir  = vec3(sin(angle), 0, cos(angle));
+    vec3 f          = normalize(cross(up, width_dir));
+
+    float c_strength    = 1.0;
+    float alpha         = 0.2;
+    float eta           = max(c_strength - alpha * deltaTime, 0.0);
+    float damp          = max(1.0 - eta, 0.1);
+    vec3 iv2            = v0 + normalize(up) * height;
+    vec3 recovery       = (iv2 - v2) * stiff * damp;
+    
+    vec3 gE = vec3(0, -9.8, 0);
+    vec3 gF = 0.25 * length(gE) * f;
+    vec3 gravity = gE + gF;
+
+    vec3 wind = GetWind(v0, v2, up, height);
+    
+    vec3 tv2 = (recovery + gravity + wind) * deltaTime;
+    v2 = v2 + tv2;
+
+    // 5.2 State Validation
+    v2 = v2 - up * min(dot(up, (v2 - v0)), 0);
+    float l_proj = length(v2 - v0 - up * dot((v2 - v0), up));
+    v1 = v0 + height * up * max(1.0 - (l_proj / height), 0.05 * max((l_proj / height), 1.0));
+    
+    float L0 = length(v2 - v0); // distance between the first and the last control point
+    float L1 = length(v1 - v0) + length(v2 - v1);   // the sum of all distances between a control point
+    float n = 2.f;  // degree n
+    float L = (2.f * L0 + (n - 1.0) * L1) / (n + 1.0);
+
+    float r = height / L;
+    v1 = v0 + r * (v1 - v0);
+    v2 = v1 + r * (v2 - v1);
+
+    blade.v1.xyz = v1;
+    blade.v2.xyz = v2;
 
 	// TODO: Cull blades that are too far away or not in the camera frustum and write them
 	// to the culled blades buffer
 	// Note: to do this, you will need to use an atomic operation to read and update numBlades.vertexCount
 	// You want to write the visible blades to the buffer without write conflicts between threads
+
+    uint idx = atomicAdd(numBlades.vertexCount, 1);
+    culledBlades[idx] = blade;
 }
