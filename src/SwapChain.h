@@ -17,14 +17,14 @@ public:
     VkSemaphore GetImageAvailableVkSemaphore() const;
     VkSemaphore GetRenderFinishedVkSemaphore() const;
     
-    void Recreate();
+    void Recreate(uint32_t width = 0, uint32_t height = 0);
     bool Acquire();
     bool Present();
     ~SwapChain();
 
 private:
     SwapChain(Device* device, VkSurfaceKHR vkSurface, unsigned int numBuffers);
-    void Create();
+    void Create(uint32_t width = 0, uint32_t height = 0);
     void Destroy();
 
     Device* device;
