@@ -773,7 +773,11 @@ void Renderer::CreateComputePipeline() {
     computeShaderStageInfo.pName = "main";
 
     // TODO: Add the compute dsecriptor set layout you create to this list
-    std::vector<VkDescriptorSetLayout> descriptorSetLayouts = { cameraDescriptorSetLayout, timeDescriptorSetLayout };
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts = { 
+        cameraDescriptorSetLayout, 
+        timeDescriptorSetLayout,
+        // computeDescriptorSetLayout
+    };
 
     // Create pipeline layout
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
@@ -1117,6 +1121,7 @@ Renderer::~Renderer() {
     vkDestroyDescriptorSetLayout(logicalDevice, cameraDescriptorSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(logicalDevice, modelDescriptorSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(logicalDevice, timeDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(logicalDevice, computeDescriptorSetLayout, nullptr);
 
     vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
 
