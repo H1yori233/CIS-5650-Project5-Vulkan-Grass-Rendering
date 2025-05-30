@@ -31,10 +31,29 @@ void main() {
 
 
 	// TODO: Set level of tesselation
-    gl_TessLevelInner[0] = 8;
-    gl_TessLevelInner[1] = 8;
-    gl_TessLevelOuter[0] = 8;
-    gl_TessLevelOuter[1] = 8;
-    gl_TessLevelOuter[2] = 8;
-    gl_TessLevelOuter[3] = 8;
+    float z1 = (camera.proj * camera.view * vec4(outV1[gl_InvocationID].xyz, 1)).z;
+    float z2 = (camera.proj * camera.view * vec4(outV2[gl_InvocationID].xyz, 1)).z;
+
+    if(z1 < 0.95  && z2 < 0.95) {
+        gl_TessLevelInner[0] = 2;
+        gl_TessLevelInner[1] = 8;
+        gl_TessLevelOuter[0] = 6;
+        gl_TessLevelOuter[1] = 3;
+        gl_TessLevelOuter[2] = 8;
+        gl_TessLevelOuter[3] = 3;
+    } else if (z1 < 0.8 && z2 < 0.8) {
+        gl_TessLevelInner[0] = 2;
+        gl_TessLevelInner[1] = 7;
+        gl_TessLevelOuter[0] = 7;
+        gl_TessLevelOuter[1] = 2;
+        gl_TessLevelOuter[2] = 7;
+        gl_TessLevelOuter[3] = 2;
+    } else {
+        gl_TessLevelInner[0] = 1;
+        gl_TessLevelInner[1] = 3;
+        gl_TessLevelOuter[0] = 3;
+        gl_TessLevelOuter[1] = 1;
+        gl_TessLevelOuter[2] = 3;
+        gl_TessLevelOuter[3] = 1;
+    }
 }

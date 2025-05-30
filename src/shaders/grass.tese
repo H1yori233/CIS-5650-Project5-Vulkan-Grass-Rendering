@@ -43,7 +43,8 @@ void main() {
 
     vec3 a = lerp(v0, v1, v);
     vec3 b = lerp(v1, v2, v);
-    vec3 c = lerp(a , b , v);
+    float tCurve = v * v;              // quadratic ease-out
+    vec3 c = lerp(a,  b, tCurve);
 
     float height    = inV1[0].w;
     float width     = inV2[0].w;
@@ -74,8 +75,9 @@ void main() {
     b = reflect(-a, normal);
     normal = normalize(slerp(a, b, u));
 
-    float threshold = 0.52;
+    float threshold = 0.23;
     float width_factor = 1.0 - max(v - threshold, 0.0) / (1.0 - threshold);
+    width_factor = pow(width_factor, 1.5);
     float adjusted_width = width * width_factor;
     vec3 c0 = c - bitangent * adjusted_width;
     vec3 c1 = c + bitangent * adjusted_width;

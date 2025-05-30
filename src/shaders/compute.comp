@@ -51,28 +51,38 @@ layout(set = 2, binding = 2) buffer NumBlades {
     uint firstInstance; // = 0
 } numBlades;
 
+const float WIND_POWER  = 15.0;
+const float WIND_SPEED  = 6.0;
+const float WAVE_LENGTH = 1.5;
+const float B_ORIENT    = 0.8;
+const float TOLERANCE   = -0.05;
+const float D_MAX_CFG   = 8.0;
+
 vec3 GetWindDirection(vec3 v0) {
     return normalize(-vec3(1, 0, 1) + v0);
 }
 
 vec3 GetWind(vec3 v0, vec3 v2, vec3 up, float h) {
-    const float windPower   = 23.0;
-    const float windSpeed   = 6.0;
-    const float waveLength  = 1.5;
-
     vec3  windDir    = GetWindDirection(v0);
-    float phase      = (dot(v0, windDir) - windSpeed * totalTime) / waveLength;
+    float phase      = (dot(v0, windDir) - WIND_SPEED * totalTime) / WAVE_LENGTH;
     float waveCoeff  = cos(phase);
 
     float f_d        = 1.0 - abs(dot(windDir, normalize(v2 - v0)));
     float f_r        = dot(v2 - v0, up) / h;
     float theta      = f_d * f_r;
 
-    return windDir * windPower * waveCoeff * theta;
+    return windDir * WIND_POWER * waveCoeff * theta;
 }
 
 bool inBounds(float value, float bounds) {
     return (value >= -bounds) && (value <= bounds);
+}
+
+bool IsPointInFrustum(vec3 pointPos, mat4 VP, float tolerance) {
+    vec4 p_clip = VP * vec4(pointPos, 1.0);
+    float h = p_clip.w + tolerance;
+    bool in_bounds = inBounds(p_clip.x, h) && inBounds(p_clip.y, h) && inBounds(p_clip.z, h);
+    return in_bounds;
 }
 
 void main() {
@@ -98,6 +108,7 @@ void main() {
     float stiff = blade.up.w;
 
     // 5.1 Natural Forces
+    vec3 dir        = normalize(v2 - v0);
     vec3 width_dir  = vec3(sin(angle), 0, cos(angle));
     vec3 f          = normalize(cross(up, width_dir));
 
@@ -138,6 +149,33 @@ void main() {
 	// to the culled blades buffer
 	// Note: to do this, you will need to use an atomic operation to read and update numBlades.vertexCount
 	// You want to write the visible blades to the buffer without write conflicts between threads
+
+    // Orientation test
+    vec3 cam = vec3(camera.view[0].z, camera.view[1].z, camera.view[2].z);
+    vec3 dir_c = normalize(cam);
+    if(!inBounds(dot(dir, dir_c), B_ORIENT))
+    {
+        return;
+    }
+    
+    // View-frustum test
+    mat4 VP = camera.proj * camera.view;
+    vec3 m = 0.25 * v0 + 0.5 * v1 + 0.25 * v2;
+    bool v0_visible = IsPointInFrustum(blade.v0.xyz, VP, TOLERANCE);
+    bool m_visible  = IsPointInFrustum(m, VP, TOLERANCE);
+    bool v2_visible = IsPointInFrustum(blade.v2.xyz, VP, TOLERANCE);
+    if (!(v0_visible || m_visible || v2_visible)) {
+        return;
+    }
+
+    // Distance test
+    const int N_LEVELS = 8;
+    float d_proj = length(cam - up * dot(cam, up));
+    float keepRatio = 1.0 - (d_proj / D_MAX_CFG);
+    int k = int(floor(max(0.0, float(N_LEVELS) * keepRatio)));
+    if ((gl_GlobalInvocationID.x % N_LEVELS) >= k) {
+         return;
+    }
 
     uint idx = atomicAdd(numBlades.vertexCount, 1);
     culledBlades[idx] = blade;

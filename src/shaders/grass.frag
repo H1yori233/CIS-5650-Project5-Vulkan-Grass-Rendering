@@ -13,8 +13,6 @@ layout(location = 2) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
-vec3 light_dir = vec3(0.3, 0.4, 0.5);
-
 void main() {
     // TODO: Compute fragment color
 	float ambient = 0.335;
@@ -25,6 +23,13 @@ void main() {
 	vec3 lightDir = normalize(vec3(1.0, 3.0, -1.0));
 
     float NdotL = clamp(dot(normal, lightDir), 0.0, 1.0);
-	vec3 color = (ambient + NdotL) * diffuse;
+    float toonIdx = step(0.55, NdotL) + step(0.25, NdotL); // 0,1,2
+    float toonMul = mix(0.4, 1.0, toonIdx * 0.5);
+	vec3 color = (ambient + toonMul) * diffuse;
+
+    vec3 viewDir = normalize(-pos);
+    float rim = pow(1.0 - dot(normal, viewDir), 5.0) * 0.008;
+    color += rim;
+
     outColor = vec4(color, 1.0);
 }

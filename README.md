@@ -3,10 +3,26 @@ Vulkan Grass Rendering
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 5**
 
-* (TODO) YOUR NAME HERE
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* H1yori233
+  * [Github](https://github.com/H1yori233)
+  * https://h1yori233.github.io
+  * https://www.linkedin.com/in/kaiqin-kong-4709b0357/
+* Tested on: **Google Chrome 137.0.7107.0, canary** on Windows 11, AMD Ryzen 7 5800H @ 3.20GHz 16GB, RTX 3050 Laptop 4GB
 
-### (TODO: Your README)
+## Project Overview
 
-*DO NOT* leave the README to the last minute! It is a crucial part of the
-project, and we will not be able to grade you without a good README.
+This project implements a real-time grass rendering system using Vulkan. The grass simulation uses Bezier curves to represent individual grass blades, with compute shaders performing physics calculations and culling operations. The remaining visible blades are rendered through a graphics pipeline featuring tessellation shaders for dynamic geometry generation.
+
+![grass_rendering](/img/grass_rendering.gif)
+
+## Features Implemented
+
+* **Compute Shader Physics Simulation**
+  * Gravity, recovery, and wind forces on grass blades
+  * Bezier curve-based grass blade representation
+* **Culling Optimizations**
+  * Orientation culling (view-perpendicular blades)
+  * View-frustum culling
+  * Distance-based culling
+
+![grass](/img/my_grass.gif)
