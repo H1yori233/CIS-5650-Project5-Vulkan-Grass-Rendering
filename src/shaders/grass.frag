@@ -8,28 +8,14 @@ layout(set = 0, binding = 0) uniform CameraBufferObject {
 
 // TODO: Declare fragment shader inputs
 layout(location = 0) in vec3 normal;
-layout(location = 1) in vec3 pos;
-layout(location = 2) in vec2 uv;
+layout(location = 1) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
 void main() {
     // TODO: Compute fragment color
-	float ambient = 0.335;
-	vec3 color1 = vec3(0.42, 0.88, 0.32);
-	vec3 color2 = vec3(0.21, 0.32, 0.18);
-
-    vec3 diffuse = mix(color2, color1, uv.y);
-	vec3 lightDir = normalize(vec3(1.0, 3.0, -1.0));
-
-    float NdotL = clamp(dot(normal, lightDir), 0.0, 1.0);
-    float toonIdx = step(0.55, NdotL) + step(0.25, NdotL); // 0,1,2
-    float toonMul = mix(0.4, 1.0, toonIdx * 0.5);
-	vec3 color = (ambient + toonMul) * diffuse;
-
-    vec3 viewDir = normalize(-pos);
-    float rim = pow(1.0 - dot(normal, viewDir), 5.0) * 0.008;
-    color += rim;
-
+	vec3 color1 = vec3(0.39, 0.90, 0.36);
+	vec3 color2 = vec3(0.26, 0.48, 0.26);
+    vec3 color = mix(color2, color1, uv.y);
     outColor = vec4(color, 1.0);
 }

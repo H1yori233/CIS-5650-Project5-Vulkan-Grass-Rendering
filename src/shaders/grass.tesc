@@ -9,15 +9,15 @@ layout(set = 0, binding = 0) uniform CameraBufferObject {
 } camera;
 
 // TODO: Declare tessellation control shader inputs and outputs
-layout(location = 0) in vec4 inV0[];
-layout(location = 1) in vec4 inV1[];
-layout(location = 2) in vec4 inV2[];
-layout(location = 3) in vec4 inUp[];
+layout(location = 0) in vec3 inV0[];
+layout(location = 1) in vec3 inV1[];
+layout(location = 2) in vec3 inV2[];
+layout(location = 3) in vec3 inParams[];
 
-layout(location = 0) out vec4 outV0[];
-layout(location = 1) out vec4 outV1[];
-layout(location = 2) out vec4 outV2[];
-layout(location = 3) out vec4 outUp[];
+layout(location = 0) out vec3 outV0[];
+layout(location = 1) out vec3 outV1[];
+layout(location = 2) out vec3 outV2[];
+layout(location = 3) out vec3 outParams[];
 
 void main() {
 	// Don't move the origin location of the patch
@@ -27,12 +27,11 @@ void main() {
     outV0[gl_InvocationID] = inV0[gl_InvocationID];
     outV1[gl_InvocationID] = inV1[gl_InvocationID];
     outV2[gl_InvocationID] = inV2[gl_InvocationID];
-    outUp[gl_InvocationID] = inUp[gl_InvocationID];
-
+    outParams[gl_InvocationID] = inParams[gl_InvocationID];
 
 	// TODO: Set level of tesselation
-    float z1 = (camera.proj * camera.view * vec4(outV1[gl_InvocationID].xyz, 1)).z;
-    float z2 = (camera.proj * camera.view * vec4(outV2[gl_InvocationID].xyz, 1)).z;
+    float z1 = (camera.proj * camera.view * vec4(outV1[gl_InvocationID], 1)).z;
+    float z2 = (camera.proj * camera.view * vec4(outV2[gl_InvocationID], 1)).z;
 
     if(z1 < 0.95  && z2 < 0.95) {
         gl_TessLevelInner[0] = 2;
