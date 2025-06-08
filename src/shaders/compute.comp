@@ -52,19 +52,14 @@ layout(set = 2, binding = 2) buffer NumBlades {
 } numBlades;
 
 // Wind Constants
-const float WIND_POWER  = 23.0;
-const float WIND_SPEED  = 6.0;
+const float WIND_POWER  = 2.0;
+const float WIND_SPEED  = 5.0;
 const float WAVE_LENGTH = 1.5;
-
-const float WIND_WEIBULL_SHAPE = 2.0;  // Weibull shape parameter (k)
-const float WIND_WEIBULL_SCALE = 6.0;  // Weibull scale parameter (λ)
-const float WIND_TURBULENCE = 0.2;     // How much random variation
-const float WIND_GUST_STRENGTH = 1.5;  // Strength of wind gusts
-const float WIND_GUST_FREQUENCY = 0.2; // Frequency of gusts
 
 const float B_ORIENT    = 0.9;
 const float TOLERANCE   = -0.05;
 const float D_MAX_CFG   = 8.0;
+const int   N_LEVELS    = 8;
 
 // Hash function for pseudo-random numbers
 float hash(vec3 p) {
@@ -102,12 +97,6 @@ float noise3D(vec3 p) {
            k7 * u.x * u.y * u.z;
 }
 
-// Weibull distribution for wind speed
-float weibullDistribution(float x, float k, float lambda) {
-    if (x < 0.0) return 0.0;
-    return (k / lambda) * pow(x / lambda, k - 1.0) * exp(-pow(x / lambda, k));
-}
-
 vec3 GetWindDirection(vec3 v0) {
     // Base direction with some spatial variation
     vec3 baseDir = normalize(-vec3(1, 0, 1));
@@ -125,30 +114,14 @@ vec3 GetWind(vec3 v0, vec3 v2, vec3 up, float h) {
     
     // Basic phase for wave motion
     float phase = (dot(v0, windDir) - WIND_SPEED * totalTime) / WAVE_LENGTH;
-    
-    // Apply Weibull distribution to modulate wind speed
-    float timeScale = totalTime * 0.5;
-    float speedFactor = weibullDistribution(fract(timeScale) * 10.0, WIND_WEIBULL_SHAPE, WIND_WEIBULL_SCALE);
-    speedFactor = mix(0.5, 1.5, speedFactor);
-    
-    // Wind variation based on noise and position
-    vec3 noisePos = v0 * 0.1 + vec3(0.0, 0.0, totalTime * 0.2);
-    float turbulence = noise3D(noisePos) * WIND_TURBULENCE;
-    
-    // Add wind gusts
-    float gustPhase = totalTime * WIND_GUST_FREQUENCY;
-    float gustNoise = noise3D(vec3(gustPhase, 0.0, 0.0));
-    float gust = smoothstep(0.7, 1.0, gustNoise) * WIND_GUST_STRENGTH;
-    
-    // Combine wave motion with noise
-    float waveCoeff = cos(phase) * (1.0 + turbulence + gust) * speedFactor;
+    float waveCoeff = cos(phase);
     
     // Calculate how the blade is affected based on orientation
     float f_d = 1.0 - abs(dot(windDir, normalize(v2 - v0)));
     float f_r = dot(v2 - v0, up) / h;
     float theta = f_d * f_r;
     
-    // Scale by height to make taller grass more affected
+    // Scale by height
     float heightFactor = clamp(h / 1.0, 0.5, 1.5);
     
     return windDir * WIND_POWER * waveCoeff * theta * heightFactor;
@@ -205,7 +178,7 @@ void main() {
 
     vec3 wind = GetWind(v0, v2, up, height);
     
-    vec3 tv2 = (recovery + gravity + wind) * deltaTime;
+    vec3 tv2 = (recovery + gravity * 0.1 + wind) * deltaTime;
     v2 = v2 + tv2;
 
     // 5.2 State Validation
@@ -224,6 +197,7 @@ void main() {
 
     blade.v1.xyz = v1;
     blade.v2.xyz = v2;
+    inputBlades[gl_GlobalInvocationID.x] = blade;
 
 	// TODO: Cull blades that are too far away or not in the camera frustum and write them
 	// to the culled blades buffer
@@ -231,9 +205,9 @@ void main() {
 	// You want to write the visible blades to the buffer without write conflicts between threads
 
     // Orientation test
-    vec3 cam = vec3(camera.view[0].z, camera.view[1].z, camera.view[2].z);
-    vec3 dir_c = normalize(cam);
-    if(!inBounds(dot(dir, dir_c), B_ORIENT))
+    vec3 dirc = normalize(vec3(camera.view * vec4(width_dir, 0.0f)));
+    vec3 dirb = normalize(vec3(camera.view * vec4(v0, 1.0f)));
+    if(!inBounds(dot(dirc, dirb), B_ORIENT))
     {
         return;
     }
@@ -241,20 +215,20 @@ void main() {
     // View-frustum test
     mat4 VP = camera.proj * camera.view;
     vec3 m = 0.25 * v0 + 0.5 * v1 + 0.25 * v2;
-    bool v0_visible = IsPointInFrustum(blade.v0.xyz, VP, TOLERANCE);
-    bool m_visible  = IsPointInFrustum(m, VP, TOLERANCE);
-    bool v2_visible = IsPointInFrustum(blade.v2.xyz, VP, TOLERANCE);
+    bool v0_visible = IsPointInFrustum(v0, VP, TOLERANCE);
+    bool m_visible  = IsPointInFrustum(m,  VP, TOLERANCE);
+    bool v2_visible = IsPointInFrustum(v2, VP, TOLERANCE);
     if (!(v0_visible || m_visible || v2_visible)) {
         return;
     }
 
     // Distance test
-    const int N_LEVELS = 8;
-    float d_proj = length(cam - up * dot(cam, up));
-    float keepRatio = 1.0 - (d_proj / D_MAX_CFG);
-    int k = int(floor(max(0.0, float(N_LEVELS) * keepRatio)));
-    if ((gl_GlobalInvocationID.x % N_LEVELS) >= k) {
-         return;
+    vec3 dir_up = vec3(camera.view * vec4(up, 0.0f));
+    vec3 viewLeft = cross(dir_up, dirb);
+    vec3 viewFront = normalize(cross(viewLeft, dir_up));
+    float dproj = dot(viewFront, dirb);
+    if ((gl_GlobalInvocationID.x % N_LEVELS) > floor(N_LEVELS * (1.0 - dproj / D_MAX_CFG))) {
+        return;
     }
 
     uint idx = atomicAdd(numBlades.vertexCount, 1);
